@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sluipverbruik meten",
+        "description": "Kies de vermogenssensor die je hele huis meet (bijvoorbeeld de P1 / slimme meter) of een slimme stekker.",
+        "data": {
+          "power_sensor": "Vermogenssensor",
+          "energy_price": "Energieprijs per kWh",
+          "baseline_seconds": "Duur basismeting",
+          "off_seconds": "Duur meting na uitschakelen",
+          "settle_seconds": "Wachttijd na uitschakelen"
+        },
+        "data_description": {
+          "power_sensor": "Sensor die het actuele vermogen in W of kW meet. Het verschil voor en na het uitschakelen van een apparaat is het sluipverbruik.",
+          "energy_price": "Wordt gebruikt om de jaarlijkse kosten van sluipverbruik te berekenen, in je Home Assistant valuta.",
+          "baseline_seconds": "Hoe lang er gemeten wordt terwijl het apparaat nog stand-by staat.",
+          "off_seconds": "Hoe lang er gemeten wordt nadat het apparaat is uitgeschakeld of de stekker eruit is.",
+          "settle_seconds": "Wachttijd nadat je bevestigt dat het apparaat uit is, voordat er opnieuw gemeten wordt."
+        }
+      }
+    },
+    "error": {
+      "sensor_not_found": "Deze entiteit bestaat niet."
+    },
+    "abort": {
+      "single_instance_allowed": "Sluipverbruik is al geconfigureerd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Meetinstellingen",
+        "description": "Kies de vermogenssensor die je hele huis meet (bijvoorbeeld de P1 / slimme meter) of een slimme stekker.",
+        "data": {
+          "power_sensor": "Vermogenssensor",
+          "energy_price": "Energieprijs per kWh",
+          "baseline_seconds": "Duur basismeting",
+          "off_seconds": "Duur meting na uitschakelen",
+          "settle_seconds": "Wachttijd na uitschakelen"
+        },
+        "data_description": {
+          "power_sensor": "Sensor die het actuele vermogen in W of kW meet. Het verschil voor en na het uitschakelen van een apparaat is het sluipverbruik.",
+          "energy_price": "Wordt gebruikt om de jaarlijkse kosten van sluipverbruik te berekenen, in je Home Assistant valuta.",
+          "baseline_seconds": "Hoe lang er gemeten wordt terwijl het apparaat nog stand-by staat.",
+          "off_seconds": "Hoe lang er gemeten wordt nadat het apparaat is uitgeschakeld of de stekker eruit is.",
+          "settle_seconds": "Wachttijd nadat je bevestigt dat het apparaat uit is, voordat er opnieuw gemeten wordt."
+        }
+      }
+    },
+    "error": {
+      "sensor_not_found": "Deze entiteit bestaat niet."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total_standby_power": {
+        "name": "Totaal sluipverbruik"
+      },
+      "avoidable_standby_power": {
+        "name": "Vermijdbaar sluipverbruik"
+      },
+      "yearly_energy_savings": {
+        "name": "Jaarlijkse energiebesparing"
+      },
+      "yearly_cost_savings": {
+        "name": "Jaarlijkse kostenbesparing"
+      }
+    }
+  }
+}

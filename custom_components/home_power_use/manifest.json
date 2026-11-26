@@ -1,0 +1,14 @@
+{
+  "domain": "home_power_use",
+  "name": "Home Power Use - Standby Power",
+  "codeowners": ["@rickolie"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "panel_custom", "websocket_api"],
+  "documentation": "https://github.com/rickolie/ha-home-power-use",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/rickolie/ha-home-power-use/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

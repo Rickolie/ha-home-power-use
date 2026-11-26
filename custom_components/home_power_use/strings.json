@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Standby power measurement",
+        "description": "Choose the power sensor that measures your whole home (for example a P1 / smart meter power sensor) or a smart plug.",
+        "data": {
+          "power_sensor": "Power sensor",
+          "energy_price": "Energy price per kWh",
+          "baseline_seconds": "Baseline measurement duration",
+          "off_seconds": "Off measurement duration",
+          "settle_seconds": "Settle time after switching off"
+        },
+        "data_description": {
+          "power_sensor": "Sensor that reports the current power in W or kW. Its difference before and after switching a device off is the standby power.",
+          "energy_price": "Used to calculate the yearly cost of standby power, in your Home Assistant currency.",
+          "baseline_seconds": "How long to measure while the device is still in standby.",
+          "off_seconds": "How long to measure after the device has been unplugged or switched off.",
+          "settle_seconds": "Waiting time after you confirm the device is off, before measuring again."
+        }
+      }
+    },
+    "error": {
+      "sensor_not_found": "This entity does not exist."
+    },
+    "abort": {
+      "single_instance_allowed": "Standby Power is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Measurement settings",
+        "description": "Choose the power sensor that measures your whole home (for example a P1 / smart meter power sensor) or a smart plug.",
+        "data": {
+          "power_sensor": "Power sensor",
+          "energy_price": "Energy price per kWh",
+          "baseline_seconds": "Baseline measurement duration",
+          "off_seconds": "Off measurement duration",
+          "settle_seconds": "Settle time after switching off"
+        },
+        "data_description": {
+          "power_sensor": "Sensor that reports the current power in W or kW. Its difference before and after switching a device off is the standby power.",
+          "energy_price": "Used to calculate the yearly cost of standby power, in your Home Assistant currency.",
+          "baseline_seconds": "How long to measure while the device is still in standby.",
+          "off_seconds": "How long to measure after the device has been unplugged or switched off.",
+          "settle_seconds": "Waiting time after you confirm the device is off, before measuring again."
+        }
+      }
+    },
+    "error": {
+      "sensor_not_found": "This entity does not exist."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "total_standby_power": {
+        "name": "Total standby power"
+      },
+      "avoidable_standby_power": {
+        "name": "Avoidable standby power"
+      },
+      "yearly_energy_savings": {
+        "name": "Yearly energy savings"
+      },
+      "yearly_cost_savings": {
+        "name": "Yearly cost savings"
+      }
+    }
+  }
+}

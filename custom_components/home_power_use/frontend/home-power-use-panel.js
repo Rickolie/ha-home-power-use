@@ -65,6 +65,16 @@ const TRANSLATIONS = {
     price: "Price: {price} per kWh",
     durations: "Baseline {b} s · Off {o} s · Settle {s} s",
     not_loaded: "The Standby Power integration is not loaded.",
+    settings_hint: "Choose the sensor that measures your whole home, such as the P1 / smart meter power sensor.",
+    power_sensor: "Power sensor (P1 meter)",
+    energy_price: "Energy price per kWh",
+    baseline_seconds: "Baseline duration (s)",
+    off_seconds: "Off duration (s)",
+    settle_seconds: "Settle time (s)",
+    save: "Save",
+    saved: "Settings saved",
+    settings_locked: "Settings can be changed after the running measurement.",
+    other_sensors: "Other sensors",
   },
   nl: {
     title: "Sluipverbruik",
@@ -125,6 +135,16 @@ const TRANSLATIONS = {
     price: "Prijs: {price} per kWh",
     durations: "Basis {b} s · Uit {o} s · Wachten {s} s",
     not_loaded: "De Sluipverbruik integratie is niet geladen.",
+    settings_hint: "Kies de sensor die je hele huis meet, zoals de vermogenssensor van de P1 / slimme meter.",
+    power_sensor: "Vermogenssensor (P1-meter)",
+    energy_price: "Energieprijs per kWh",
+    baseline_seconds: "Duur basismeting (s)",
+    off_seconds: "Duur meting uit (s)",
+    settle_seconds: "Wachttijd (s)",
+    save: "Opslaan",
+    saved: "Instellingen opgeslagen",
+    settings_locked: "Instellingen kunnen na de lopende meting worden gewijzigd.",
+    other_sensors: "Overige sensoren",
   },
 };
 
@@ -308,7 +328,30 @@ class HomePowerUsePanel extends HTMLElement {
           <h2>${esc(this._t("devices"))}</h2>
           <div id="devices"></div>
         </div>
-        <div class="footer" id="footer"></div>
+        <details class="card settings" id="settings-card">
+          <summary><h2>${esc(this._t("settings"))}</h2><span class="settings-summary" id="settings-summary"></span></summary>
+          <form id="settings-form" autocomplete="off">
+            <p class="hint">${esc(this._t("settings_hint"))}</p>
+            <label class="field">
+              <span>${esc(this._t("power_sensor"))}</span>
+              <select id="set-sensor" name="power_sensor"></select>
+            </label>
+            <div class="settings-grid">
+              <label class="field"><span>${esc(this._t("energy_price"))}</span>
+                <input id="set-price" name="energy_price" type="number" min="0" max="10" step="0.001" inputmode="decimal" required></label>
+              <label class="field"><span>${esc(this._t("baseline_seconds"))}</span>
+                <input id="set-baseline" name="baseline_seconds" type="number" min="5" max="600" step="1" required></label>
+              <label class="field"><span>${esc(this._t("off_seconds"))}</span>
+                <input id="set-off" name="off_seconds" type="number" min="5" max="600" step="1" required></label>
+              <label class="field"><span>${esc(this._t("settle_seconds"))}</span>
+                <input id="set-settle" name="settle_seconds" type="number" min="0" max="120" step="1" required></label>
+            </div>
+            <p class="hint locked" id="settings-locked" hidden>${esc(this._t("settings_locked"))}</p>
+            <div class="actions">
+              <button type="submit" class="primary" id="settings-save">${esc(this._t("save"))}</button>
+            </div>
+          </form>
+        </details>
       </div>
     `;
 
@@ -360,6 +403,29 @@ class HomePowerUsePanel extends HTMLElement {
       }
     });
 
+    const settingsForm = root.getElementById("settings-form");
+    settingsForm.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      if (!settingsForm.reportValidity()) return;
+      const payload = {
+        power_sensor: root.getElementById("set-sensor").value,
+        energy_price: parseFloat(root.getElementById("set-price").value),
+        baseline_seconds: parseInt(root.getElementById("set-baseline").value, 10),
+        off_seconds: parseInt(root.getElementById("set-off").value, 10),
+        settle_seconds: parseInt(root.getElementById("set-settle").value, 10),
+      };
+      this._ws("settings/update", payload).then(() => {
+        this._settingsDirty = false;
+        this._showToast(this._t("saved"));
+      });
+    });
+    settingsForm.addEventListener("input", () => {
+      this._settingsDirty = true;
+    });
+    root.getElementById("settings-card").addEventListener("toggle", (ev) => {
+      if (ev.target.open && !this._settingsDirty) this._renderSettings(true);
+    });
+
     const devices = root.getElementById("devices");
     devices.addEventListener("change", (ev) => this._onDeviceChange(ev));
     devices.addEventListener("click", (ev) => this._onDeviceClick(ev));
@@ -384,7 +450,7 @@ class HomePowerUsePanel extends HTMLElement {
     this._renderSummary();
     this._renderMeasurement();
     this._renderDevices();
-    this._renderFooter();
+    this._renderSettings();
   }
 
   _currentPower() {
@@ -672,19 +738,62 @@ class HomePowerUsePanel extends HTMLElement {
     }
   }
 
-  _renderFooter() {
-    const el = this.shadowRoot.getElementById("footer");
-    const s = this._data?.settings;
-    if (!s) {
-      el.innerHTML = "";
-      return;
+  _powerSensors() {
+    const states = this._hass?.states || {};
+    const power = [];
+    const other = [];
+    for (const [id, st] of Object.entries(states)) {
+      if (!id.startsWith("sensor.")) continue;
+      const unit = st.attributes?.unit_of_measurement;
+      const isPower = st.attributes?.device_class === "power" || ["W", "kW"].includes(unit);
+      if (!isPower) continue;
+      const name = st.attributes?.friendly_name || id;
+      const value = ["unknown", "unavailable"].includes(st.state) ? st.state : `${st.state} ${unit || ""}`.trim();
+      // Put likely whole-home meters (P1 / DSMR / grid) on top.
+      (/p1|dsmr|grid|net|meter|homewizard|slimme/i.test(`${id} ${name}`) ? power : other).push({ id, name, value });
     }
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    return { power: power.sort(byName), other: other.sort(byName) };
+  }
+
+  _renderSettings(force = false) {
+    const root = this.shadowRoot;
+    const s = this._data?.settings;
+    const card = root.getElementById("settings-card");
+    card.hidden = !s;
+    if (!s) return;
+
     const sensorName = this._hass?.states?.[s.power_sensor]?.attributes?.friendly_name || s.power_sensor;
-    el.innerHTML = `
-      <span>${esc(this._t("sensor", { sensor: sensorName }))}</span>
-      <span>${esc(this._t("price", { price: this._money(s.energy_price, 3) }))}</span>
-      <span>${esc(this._t("durations", { b: s.baseline_seconds, o: s.off_seconds, s: s.settle_seconds }))}</span>
-      <a href="/config/integrations/integration/${DOMAIN}">${esc(this._t("settings"))}</a>`;
+    root.getElementById("settings-summary").textContent = [
+      sensorName,
+      this._t("price", { price: this._money(s.energy_price, 3) }),
+      this._t("durations", { b: s.baseline_seconds, o: s.off_seconds, s: s.settle_seconds }),
+    ].join(" · ");
+
+    const busy = ["baseline", "waiting_for_off", "settling", "measuring_off"].includes(this._data?.measurement?.phase);
+    root.getElementById("settings-locked").hidden = !busy;
+    root.getElementById("settings-save").disabled = busy;
+
+    const key = JSON.stringify(s);
+    if (!force && (key === this._settingsKey || this._settingsDirty)) return;
+    const form = root.getElementById("settings-form");
+    if (!force && form.contains(root.activeElement)) return;
+    this._settingsKey = key;
+    this._settingsDirty = false;
+
+    const { power, other } = this._powerSensors();
+    const option = (o) =>
+      `<option value="${esc(o.id)}" ${o.id === s.power_sensor ? "selected" : ""}>${esc(o.name)} (${esc(o.value)})</option>`;
+    let options = power.map(option).join("");
+    if (other.length) options += `<optgroup label="${esc(this._t("other_sensors"))}">${other.map(option).join("")}</optgroup>`;
+    if (![...power, ...other].some((o) => o.id === s.power_sensor)) {
+      options = `<option value="${esc(s.power_sensor)}" selected>${esc(s.power_sensor)}</option>` + options;
+    }
+    root.getElementById("set-sensor").innerHTML = options;
+    root.getElementById("set-price").value = s.energy_price;
+    root.getElementById("set-baseline").value = s.baseline_seconds;
+    root.getElementById("set-off").value = s.off_seconds;
+    root.getElementById("set-settle").value = s.settle_seconds;
   }
 }
 
@@ -714,7 +823,7 @@ const STYLE = `
   .live { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
   .live-label { font-size: 11px; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.04em; }
   .live-value { font-size: 16px; font-variant-numeric: tabular-nums; }
-  .content { max-width: 1100px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .content { max-width: 1100px; margin: 0 auto; padding: 16px 16px 32px; display: flex; flex-direction: column; gap: 16px; }
   .card {
     background: var(--ha-card-background, var(--card-background-color, #fff));
     border-radius: var(--hpu-radius);
@@ -813,8 +922,22 @@ const STYLE = `
   .switch input:checked + .slider { background: var(--switch-checked-track-color, var(--hpu-accent)); }
   .switch input:checked + .slider::before { transform: translateX(18px); background: var(--switch-checked-button-color, #fff); }
   .switch input:focus-visible + .slider { outline: 2px solid var(--primary-color); outline-offset: 2px; }
-  .footer { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--secondary-text-color); font-size: 13px; padding: 0 4px 24px; }
-  .footer a { color: var(--primary-color); }
+  details.settings > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+  details.settings > summary::-webkit-details-marker { display: none; }
+  details.settings > summary h2 { margin: 0; }
+  details.settings > summary h2::before { content: "▸"; display: inline-block; width: 14px; margin-right: 4px; text-align: center; line-height: 1; transform-origin: 50% 55%; color: var(--secondary-text-color); transition: transform 0.15s; }
+  details.settings[open] > summary h2::before { transform: rotate(90deg); }
+  details.settings[open] > summary { margin-bottom: 12px; }
+  .settings-summary { font-size: 13px; color: var(--secondary-text-color); }
+  .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 12px; }
+  .hint.locked { margin: 12px 0 0; color: var(--warning-color, #ffa600); }
+  select {
+    font: inherit; font-size: 16px; color: var(--primary-text-color); width: 100%; min-width: 0;
+    background: var(--input-fill-color, var(--secondary-background-color, #f5f5f5));
+    border: 1px solid var(--input-idle-line-color, var(--divider-color, #ccc));
+    border-radius: 8px; padding: 10px 12px;
+  }
+  select:focus { outline: 2px solid var(--primary-color); outline-offset: -1px; }
 
   @media (max-width: 720px) {
     .content { padding: 12px; gap: 12px; }

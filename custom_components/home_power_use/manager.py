@@ -149,6 +149,25 @@ class StandbyPowerManager:
         """Return the energy price per kWh."""
         return float(self.settings[CONF_ENERGY_PRICE])
 
+    @callback
+    def async_update_settings(self, **changes: Any) -> None:
+        """Store new settings in the config entry options."""
+        if self._measurement["phase"] in ACTIVE_PHASES:
+            raise HomeAssistantError(
+                "Settings cannot be changed while a measurement is running"
+            )
+        sensor = changes.get(CONF_POWER_SENSOR)
+        if sensor is not None and self.hass.states.get(sensor) is None:
+            raise HomeAssistantError(f"Entity {sensor} does not exist")
+        options = {**self.settings, **changes}
+        options.pop("entry_id", None)
+        self.hass.config_entries.async_update_entry(self.entry, options=options)
+
+    @callback
+    def async_settings_changed(self) -> None:
+        """Push new settings (and recalculated costs) to listeners."""
+        self._notify(devices_changed=True)
+
     def read_power(self) -> float | None:
         """Return the current power of the measuring sensor in W."""
         state = self.hass.states.get(self.power_sensor)

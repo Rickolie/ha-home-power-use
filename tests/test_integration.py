@@ -186,3 +186,55 @@ async def test_unavailable_sensor(hass: HomeAssistant) -> None:
     with pytest.raises(HomeAssistantError):
         manager.async_start_measurement("X")
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_change_power_sensor(hass: HomeAssistant, hass_ws_client) -> None:
+    """The panel can switch to another P1 sensor without reloading."""
+    entry = await _setup(hass)
+    manager = entry.runtime_data
+    hass.states.async_set("sensor.p1_power", "0.31", {"unit_of_measurement": "kW"})
+    client = await hass_ws_client(hass)
+
+    await client.send_json_auto_id({"type": f"{DOMAIN}/subscribe"})
+    assert (await client.receive_json())["success"]
+    await client.receive_json()
+
+    await client.send_json_auto_id(
+        {
+            "type": f"{DOMAIN}/settings/update",
+            "power_sensor": "sensor.p1_power",
+            "energy_price": 0.25,
+            "baseline_seconds": 60,
+        }
+    )
+    msgs = [await client.receive_json() for _ in range(2)]
+    result = next(m for m in msgs if m["type"] == "result")
+    assert result["success"], result
+    await hass.async_block_till_done()
+
+    # Same manager (no reload), new settings applied and pushed to the panel
+    assert entry.runtime_data is manager
+    assert entry.options["power_sensor"] == "sensor.p1_power"
+    assert entry.options["off_seconds"] == 5
+    assert manager.read_power() == 310
+    event = next(m for m in msgs if m["type"] == "event")["event"]
+    assert event["settings"]["power_sensor"] == "sensor.p1_power"
+    assert event["settings"]["energy_price"] == 0.25
+
+    # Unknown entity is rejected
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/settings/update", "power_sensor": "sensor.nope"}
+    )
+    result = await client.receive_json()
+    assert not result["success"]
+
+    # Locked while measuring
+    manager.async_start_measurement("TV")
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/settings/update", "energy_price": 0.4}
+    )
+    while (result := await client.receive_json())["type"] != "result":
+        pass
+    assert not result["success"]
+    manager.async_cancel_measurement()
+    await hass.config_entries.async_unload(entry.entry_id)

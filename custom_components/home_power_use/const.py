@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "home_power_use"
-VERSION: Final = "0.1.0"
+VERSION: Final = "0.2.0"
 
 CONF_POWER_SENSOR: Final = "power_sensor"
 CONF_ENERGY_PRICE: Final = "energy_price"

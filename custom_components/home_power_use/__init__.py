@@ -63,8 +63,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: HomePowerUseConfigEntry
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: HomePowerUseConfigEntry) -> None:
-    """Reload when the options change."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    """Apply changed options without reloading, so open panels stay connected."""
+    entry.runtime_data.async_settings_changed()
 
 
 async def _async_register_panel(hass: HomeAssistant) -> None:

@@ -10,7 +10,14 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
+from .const import (
+    CONF_BASELINE_SECONDS,
+    CONF_ENERGY_PRICE,
+    CONF_OFF_SECONDS,
+    CONF_POWER_SENSOR,
+    CONF_SETTLE_SECONDS,
+    DOMAIN,
+)
 from .manager import StandbyPowerManager
 
 
@@ -25,6 +32,7 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
         ws_add_device,
         ws_update_device,
         ws_delete_device,
+        ws_update_settings,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -189,3 +197,33 @@ def ws_delete_device(
     if (manager := _manager(hass, connection, msg)) is None:
         return
     _run(connection, msg, manager.async_delete_device, msg["device_id"])
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/settings/update",
+        vol.Optional(CONF_POWER_SENSOR): vol.All(str, vol.Match(r"^sensor\.\w+$")),
+        vol.Optional(CONF_ENERGY_PRICE): vol.All(
+            vol.Coerce(float), vol.Range(min=0, max=10)
+        ),
+        vol.Optional(CONF_BASELINE_SECONDS): vol.All(
+            vol.Coerce(int), vol.Range(min=5, max=600)
+        ),
+        vol.Optional(CONF_OFF_SECONDS): vol.All(
+            vol.Coerce(int), vol.Range(min=5, max=600)
+        ),
+        vol.Optional(CONF_SETTLE_SECONDS): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=120)
+        ),
+    }
+)
+@callback
+def ws_update_settings(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict
+) -> None:
+    """Change the power sensor, energy price or measurement durations."""
+    if (manager := _manager(hass, connection, msg)) is None:
+        return
+    changes = {k: v for k, v in msg.items() if k not in ("type", "id")}
+    _run(connection, msg, manager.async_update_settings, **changes)

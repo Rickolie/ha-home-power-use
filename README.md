@@ -73,7 +73,11 @@ Copy `custom_components/home_power_use` into your `config/custom_components/` fo
 
 ## Configuration
 
-All settings can be changed later via **Configure** on the integration:
+All settings can be changed later in the **Settings** section at the bottom of the
+Standby Power panel (or via **Configure** on the integration). The panel lists all
+power sensors with their live value, P1 / smart meter sensors first, so you can
+switch to another P1 sensor at any time. Changes apply immediately (no restart) and
+existing measurements are kept; settings are locked while a measurement runs.
 
 * **Power sensor** – a sensor with device class `power` in W or kW
 * **Energy price per kWh** – used for the cost calculations
@@ -95,4 +99,4 @@ pytest
 The panel (`custom_components/home_power_use/frontend/home-power-use-panel.js`) is a
 plain web component without build step. It talks to the backend through these
 websocket commands: `home_power_use/subscribe`, `measurement/start`,
-`measurement/device_off`, `measurement/cancel`, `device/add`, `device/update`, `device/delete`.
+`measurement/device_off`, `measurement/cancel`, `device/add`, `device/update`, `device/delete`, `settings/update`.
